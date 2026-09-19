@@ -1,1 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>PLMunTrack - QR Scanner</title>
+
+    <!-- QR SCANNER LIBRARY -->
+    <script src="https://unpkg.com/html5-qrcode"
+            type="text/javascript"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+        }
+
+        .header {
+            background: linear-gradient(
+                135deg,
+                #0645ad,
+                #0b76e8
+            );
+
+            color: white;
+            padding: 25px 40px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        .header p {
+            margin: 7px 0 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow:
+                0 5px 20px
+                rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        h2 {
+            color: #12345b;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 25px auto;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #eef5ff;
+            color: #0b5ed7;
+            font-weight: bold;
+        }
+
+        .success {
+            background: #e8f7ee !important;
+            color: #198754 !important;
+        }
+
+        .error {
+            background: #fdecec !important;
+            color: #dc3545 !important;
+        }
+
+        .info {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div class="header">
+
+        <h1>PLMunTrack</h1>
+
+        <p>
+            QR Code-Based Attendance
+            Management System
+        </p>
+
+    </div>
+
+
+    <div class="container">
+
+        <div class="card">
+
+            <h2>
+                QR Code Scanner
+            </h2>
+
+            <p>
+                Scan a student's daily QR Code
+                to record attendance.
+            </p>
+
+
+            <!-- SCANNER -->
+
+            <div id="reader"></div>
+
+
+            <!-- RESULT -->
+
+            <div id="result">
+                Ready to scan QR Code.
+            </div>
+
+
+            <div class="info">
+
+                The QR Code must be valid
+                for today's date.
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+
+        // =====================================================
+        // PLMunTrack API
+        // =====================================================
+
+        const API_URL =
+            "https://script.google.com/macros/s/AKfycbzZ8R2x6kVoUPFaCBEYg4kg0G-YvGBDZs8mnKcrSbotlOLpksedVGacluzqdfK2ivsR/exec";
+
+
+        // =====================================================
+        // RESULT BOX
+        // =====================================================
+
+        const result =
+            document.getElementById("result");
+
+
+        // =====================================================
+        // QR SCANNED
+        // =====================================================
+
+        function onScanSuccess(
+            decodedText,
+            decodedResult
+        ) {
+
+            console.log(
+                "QR Code:",
+                decodedText
+            );
+
+
+            result.className = "";
+
+            result.innerText =
+                "Processing attendance...";
+
+
+            // Stop scanner after successful scan
+
+            html5QrcodeScanner.clear()
+                .catch(
+                    error => {
+                        console.log(error);
+                    }
+                );
+
+
+            // Send QR token to Apps Script
+
+            fetch(
+                API_URL +
+                "?action=scan&qrToken=" +
+                encodeURIComponent(
+                    decodedText
+                )
+            )
+
+            .then(
+                response =>
+                    response.json()
+            )
+
+            .then(
+                data => {
+
+                    console.log(
+                        "Scanner response:",
+                        data
+                    );
+
+
+                    if (
+                        data.success
+                    ) {
+
+                        result.className =
+                            "success";
+
+
+                        result.innerHTML = `
+
+                            ✅ ${data.message || "Attendance recorded successfully."}
+
+                            <br><br>
+
+                            Student Number:
+                            ${data.studentNumber || "-"}
+
+                            <br>
+
+                            Type:
+                            ${data.personType || "-"}
+
+                            <br>
+
+                            Date:
+                            ${data.date || "-"}
+
+                            <br>
+
+                            Time:
+                            ${data.time || "-"}
+
+                            <br>
+
+                            Status:
+                            ${data.status || "-"}
+
+                        `;
+
+                    }
+
+                    else {
+
+                        result.className =
+                            "error";
+
+
+                        result.innerHTML = `
+
+                            ❌ ${data.message || "Unable to record attendance."}
+
+                        `;
+
+                    }
+
+                }
+            )
+
+            .catch(
+                error => {
+
+                    console.error(
+                        error
+                    );
+
+
+                    result.className =
+                        "error";
+
+
+                    result.innerHTML = `
+
+                        ❌ Unable to connect
+                        to PLMunTrack.
+
+                    `;
+
+                }
+            );
+
+        }
+
+
+        // =====================================================
+        // SCANNER ERROR
+        // =====================================================
+
+        function onScanFailure(
+            error
+        ) {
+
+            // Ignore normal scanning errors.
+            // The scanner continuously searches
+            // for a QR Code.
+
+        }
+
+
+        // =====================================================
+        // START SCANNER
+        // =====================================================
+
+        const html5QrcodeScanner =
+            new Html5QrcodeScanner(
+
+                "reader",
+
+                {
+
+                    fps: 10,
+
+                    qrbox: {
+                        width: 250,
+                        height: 250
+                    },
+
+                    rememberLastUsedCamera: true
+
+                },
+
+                false
+
+            );
+
+
+        html5QrcodeScanner.render(
+            onScanSuccess,
+            onScanFailure
+        );
+
+
+    </script>
+
+
+</body>
+
+</html>
